@@ -1,4 +1,4 @@
-function run_pairwise_pwcmp()
+function run_pairwise_with_baseline()
 % RUN_PAIRWISE_PWCMP  Pairwise video quality test (Reference vs Test)
 %
 % Folder layout under dataset_root:
@@ -33,7 +33,7 @@ targetFps     = 0; % 0 lets PTB choose; set >0 to try to cap drawing rate
 screenNumber = 1;
 Screen('Preference', 'SkipSyncTests', 1);
 
-FULL_SCREEN_MODE = false;
+FULL_SCREEN_MODE = false; % false; true
 
 % ==== DISCOVER TRIALS ====
 trials = discover_trials(dataset_root); % defined below
@@ -76,7 +76,7 @@ try
     fprintf(fid, 'userid,scene,bitrate,speed,choice\n');
 
     if ~FULL_SCREEN_MODE
-        rect = [100 100 900 700];
+        rect = [100 100 1650 950];
         [window, windowRect] = Screen('OpenWindow', screenNumber, 0, rect);
     else
         [window, windowRect] = Screen('OpenWindow', screenNumber, 0); % fullscreen
@@ -91,7 +91,15 @@ try
         % disp(t.ref_path);
 
         [choice, aborted] = play_trial(window, windowRect, t.ref_path, t.test_chunks, ti, numel(trials), true);
-        % if aborted, break; end
+        if aborted
+            fprintf('Trial %d aborted by user.\n', ti);
+            fclose(fid);
+            Screen('CloseAll');   % close all PTB windows
+            ListenChar(0);        % re-enable keyboard input to MATLAB
+            ShowCursor;           % show the mouse cursor again
+            return;               % exit the function completely
+        end
+
         % map choice string to numeric code
         if strcmp(choice, 'test')
             choice_code = 1;
@@ -116,11 +124,15 @@ try
         end
 
     fclose(fid);
-    draw_center_text(window, 'All done! Thank you 🙏\n\n(Press any key to exit)', 30, [255 255 255]);
-    KbStrokeWait;
+    draw_center_text(window, 'All done! Thank you 🙏', 30, [255 255 255]);
+    WaitSecs(1.5);   % optional: keep it visible for 1–2 seconds
+    
+    % --- Cleanup and exit ---
+    Screen('CloseAll');   % close the PTB window
+    ListenChar(0);        % re-enable MATLAB keyboard input
+    ShowCursor;           % show mouse cursor
+    return;               % exit function/script
 
-    sca_cleanup(window, oldVerbosity, oldSync);
-    ShowCursor; ListenChar(0);
     
 catch ME
     sca_cleanup([], oldVerbosity, oldSync);
